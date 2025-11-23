@@ -1,6 +1,12 @@
 import React, { useState, useRef } from 'react';
 import html2canvas from 'html2canvas';
-import { Download, Lock } from 'lucide-react';
+import { Download, Save, Loader2 } from 'lucide-react'; // Added icons
+import { useNavigate } from 'react-router-dom'; // For redirecting
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { db, storage } from "../firebase";
+import { useAuth } from "../context/AuthContext";
+
 import PosterCanvas from '../components/PosterCanvas';
 import ControlPanel from '../components/ControlPanel';
 import PaymentModal from '../components/PaymentModal';
@@ -8,8 +14,12 @@ import Footer from '../components/Footer';
 
 const CreatePoster = () => {
   const posterRef = useRef(null);
+  const { user } = useAuth(); // Get current user
+  const navigate = useNavigate();
+  
   const [isPremium, setIsPremium] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
+  const [isSaving, setIsSaving] = useState(false); // Loading state
   
   const [details, setDetails] = useState({
     type: 'church',
@@ -19,6 +29,7 @@ const CreatePoster = () => {
     image: null
   });
 
+  // 1. Handle Download (Local)
   const handleDownload = async () => {
     if (posterRef.current) {
       const canvas = await html2canvas(posterRef.current, { scale: 2, useCORS: true });
@@ -29,7 +40,44 @@ const CreatePoster = () => {
     }
   };
 
-  // Mock AI generation function
+  // 2. Handle Save (Cloud)
+  const handleSaveToCloud = async () => {
+    if (!user) return alert("Please login to save designs!");
+    if (!posterRef.current) return;
+
+    try {
+      setIsSaving(true);
+
+      // A. Convert DOM to Blob (Image File)
+      const canvas = await html2canvas(posterRef.current, { scale: 2, useCORS: true });
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+
+      // B. Upload to Firebase Storage
+      const filename = `posters/${user.uid}/${Date.now()}.jpg`;
+      const storageRef = ref(storage, filename);
+      await uploadBytes(storageRef, blob);
+      const downloadURL = await getDownloadURL(storageRef);
+
+      // C. Save Metadata to Firestore
+      await addDoc(collection(db, "users", user.uid, "designs"), {
+        title: details.title || "Untitled Poster",
+        imageUrl: downloadURL,
+        createdAt: serverTimestamp(),
+        type: details.type,
+        venue: details.venue
+      });
+
+      alert("Saved to Dashboard!");
+      navigate('/dashboard'); // Send user to dashboard
+
+    } catch (error) {
+      console.error("Error saving:", error);
+      alert("Failed to save poster. Check console.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleAIGenerate = () => {
     const keywords = details.type === 'church' ? 'church,worship' : 'club,neon,party';
     const randomImg = `https://source.unsplash.com/random/800x1000/?${keywords}&t=${new Date().getTime()}`;
@@ -38,7 +86,6 @@ const CreatePoster = () => {
 
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100 font-sans selection:bg-pink-500 selection:text-white pb-20">
-
       <main className="max-w-6xl mx-auto px-4 py-8 grid md:grid-cols-12 gap-8">
         
         {/* Left: Controls */}
@@ -53,13 +100,25 @@ const CreatePoster = () => {
             onGenerateAI={handleAIGenerate} 
           />
           
-          <button 
-            onClick={handleDownload}
-            className="w-full bg-white text-black hover:bg-gray-200 font-bold py-4 rounded-xl flex items-center justify-center gap-2 transition shadow-lg shadow-white/10"
-          >
-            <Download size={20} />
-            Download Poster
-          </button>
+          <div className="flex gap-3">
+            <button 
+              onClick={handleDownload}
+              className="flex-1 bg-white text-black hover:bg-gray-200 font-bold py-4 rounded-xl flex items-center justify-center gap-2 transition shadow-lg"
+            >
+              <Download size={20} />
+              Download
+            </button>
+
+            {/* NEW SAVE BUTTON */}
+            <button 
+              onClick={handleSaveToCloud}
+              disabled={isSaving}
+              className="flex-1 border border-gray-700 hover:bg-gray-800 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 transition"
+            >
+              {isSaving ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
+              {isSaving ? "Saving..." : "Save to Cloud"}
+            </button>
+          </div>
         </div>
 
         {/* Right: Preview */}
@@ -79,7 +138,6 @@ const CreatePoster = () => {
         onClose={() => setShowPayment(false)} 
         onSuccess={() => setIsPremium(true)}
       />
-
       <Footer />
     </div>
   );

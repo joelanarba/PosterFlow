@@ -1,8 +1,10 @@
+// src/firebase.js
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
-import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-analytics.js";
+import { getStorage } from "firebase/storage";
 
+// Your Config
 const firebaseConfig = {
   apiKey: "AIzaSyADDfkHaTkodCYwI2PwVD54Hu5HgsaOB6k",
   authDomain: "posterflow-id.firebaseapp.com",
@@ -13,9 +15,11 @@ const firebaseConfig = {
   measurementId: "G-8LZL9JFDXS",
 };
 
+// Initialize App
 const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
+
+// Initialize Services
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 export const db = getFirestore(app);
-
+export const storage = getStorage(app);
