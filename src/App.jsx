@@ -39,11 +39,13 @@ function App() {
     <AuthProvider>
       <Router>
         <Navbar />
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/create" element={<CreatePoster />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-        </Routes>
+        <main className="pt-16 min-h-screen bg-black text-white">
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/create" element={<CreatePoster />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+          </Routes>
+        </main>
       </Router>
     </AuthProvider>
   );
