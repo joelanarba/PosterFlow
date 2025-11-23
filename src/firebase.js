@@ -3,16 +3,17 @@ import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
+import { getFunctions } from "firebase/functions";
 
 // Your Config
 const firebaseConfig = {
-  apiKey: "AIzaSyADDfkHaTkodCYwI2PwVD54Hu5HgsaOB6k",
-  authDomain: "posterflow-id.firebaseapp.com",
-  projectId: "posterflow-id",
-  storageBucket: "posterflow-id.firebasestorage.app",
-  messagingSenderId: "235188106188",
-  appId: "1:235188106188:web:b53324a35b3b5dcf6f6369",
-  measurementId: "G-8LZL9JFDXS",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
 // Initialize App
@@ -23,3 +24,4 @@ export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 export const db = getFirestore(app);
 export const storage = getStorage(app);
+export const functions = getFunctions(app);

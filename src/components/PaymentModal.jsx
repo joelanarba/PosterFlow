@@ -1,14 +1,17 @@
 import React, { useState } from 'react';
 import { PaystackButton } from 'react-paystack';
-import { X, CheckCircle } from 'lucide-react';
+import { X, CheckCircle, Loader2 } from 'lucide-react';
+import { functions } from '../firebase';
+import { httpsCallable } from 'firebase/functions';
 
 const PaymentModal = ({ isOpen, onClose, onSuccess }) => {
   const [email, setEmail] = useState("");
+  const [isVerifying, setIsVerifying] = useState(false);
   
   if (!isOpen) return null;
 
   // REPLACE WITH YOUR PUBLIC KEY FROM PAYSTACK DASHBOARD
-  const publicKey = "pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"; 
+  const publicKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY;
   const amount = 1000; // GHS 10.00 (in pesewas)
 
   const componentProps = {
@@ -18,9 +21,21 @@ const PaymentModal = ({ isOpen, onClose, onSuccess }) => {
     metadata: { name: 'PosterFlow User', phone: '' },
     publicKey,
     text: "Pay GHS 10.00",
-    onSuccess: () => {
-      onSuccess();
-      onClose();
+    onSuccess: async (reference) => {
+      setIsVerifying(true);
+      try {
+        const verifyPayment = httpsCallable(functions, 'verifyPayment');
+        const result = await verifyPayment({ reference: reference.reference });
+        if (result.data.success) {
+          onSuccess();
+          onClose();
+        }
+      } catch (error) {
+        console.error("Payment verification failed:", error);
+        alert("Payment verification failed. Please contact support.");
+      } finally {
+        setIsVerifying(false);
+      }
     },
     onClose: () => alert("Payment cancelled"),
   };
@@ -49,7 +64,9 @@ const PaymentModal = ({ isOpen, onClose, onSuccess }) => {
         />
 
         {email ? (
-          <PaystackButton {...componentProps} className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg transition" />
+          <PaystackButton {...componentProps} className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg transition flex items-center justify-center">
+            {isVerifying ? <Loader2 className="animate-spin mr-2" /> : "Pay Now"}
+          </PaystackButton>
         ) : (
           <button disabled className="w-full bg-gray-700 text-gray-500 font-bold py-3 rounded-lg cursor-not-allowed">
             Enter Email to Pay

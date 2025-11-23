@@ -62,4 +62,37 @@ exports.generateBackground = onCall(async (request) => {
   }
 });
 
+exports.verifyPayment = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "User must be logged in.");
+  }
 
+  const reference = request.data.reference;
+  if (!reference) {
+    throw new HttpsError("invalid-argument", "Payment reference is required.");
+  }
+
+  const secretKey = process.env.PAYSTACK_SECRET_KEY;
+  if (!secretKey) {
+    throw new HttpsError("failed-precondition", "Paystack secret key not configured.");
+  }
+
+  try {
+    const response = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
+      headers: {
+        Authorization: `Bearer ${secretKey}`,
+      },
+    });
+
+    const data = await response.json();
+
+    if (!data.status || data.data.status !== "success") {
+      throw new HttpsError("aborted", "Payment verification failed.");
+    }
+
+    return { success: true, data: data.data };
+  } catch (error) {
+    console.error("Payment Verification Error:", error);
+    throw new HttpsError("internal", "Unable to verify payment.");
+  }
+});
