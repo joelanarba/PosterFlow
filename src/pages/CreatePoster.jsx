@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import html2canvas from 'html2canvas';
-import { Download, Save, Loader2 } from 'lucide-react'; // Added icons
-import { useNavigate } from 'react-router-dom'; // For redirecting
+import { Download, Save, Loader2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db, storage } from "../firebase";
@@ -14,22 +14,25 @@ import Footer from '../components/Footer';
 
 const CreatePoster = () => {
   const posterRef = useRef(null);
-  const { user } = useAuth(); // Get current user
+  const { user } = useAuth();
   const navigate = useNavigate();
   
   const [isPremium, setIsPremium] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
-  const [isSaving, setIsSaving] = useState(false); // Loading state
+  const [isSaving, setIsSaving] = useState(false);
   
+  // UPDATED STATE with new fields
   const [details, setDetails] = useState({
     type: 'church',
     title: '',
     date: '',
+    time: '',
     venue: '',
+    description: '',
+    themeColor: 'default',
     image: null
   });
 
-  // 1. Handle Download (Local)
   const handleDownload = async () => {
     if (posterRef.current) {
       const canvas = await html2canvas(posterRef.current, { scale: 2, useCORS: true });
@@ -40,35 +43,31 @@ const CreatePoster = () => {
     }
   };
 
-  // 2. Handle Save (Cloud)
   const handleSaveToCloud = async () => {
     if (!user) return alert("Please login to save designs!");
     if (!posterRef.current) return;
 
     try {
       setIsSaving(true);
-
-      // A. Convert DOM to Blob (Image File)
       const canvas = await html2canvas(posterRef.current, { scale: 2, useCORS: true });
       const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
 
-      // B. Upload to Firebase Storage
       const filename = `posters/${user.uid}/${Date.now()}.jpg`;
       const storageRef = ref(storage, filename);
       await uploadBytes(storageRef, blob);
       const downloadURL = await getDownloadURL(storageRef);
 
-      // C. Save Metadata to Firestore
       await addDoc(collection(db, "users", user.uid, "designs"), {
         title: details.title || "Untitled Poster",
         imageUrl: downloadURL,
         createdAt: serverTimestamp(),
         type: details.type,
-        venue: details.venue
+        venue: details.venue,
+        themeColor: details.themeColor // Save theme too
       });
 
       alert("Saved to Dashboard!");
-      navigate('/dashboard'); // Send user to dashboard
+      navigate('/dashboard');
 
     } catch (error) {
       console.error("Error saving:", error);
@@ -79,7 +78,13 @@ const CreatePoster = () => {
   };
 
   const handleAIGenerate = () => {
-    const keywords = details.type === 'church' ? 'church,worship' : 'club,neon,party';
+    // Enhanced AI Keywords based on new types
+    let keywords = "abstract,art";
+    if (details.type === 'church') keywords = "church,cross,holy,light";
+    if (details.type === 'party') keywords = "neon,party,nightclub,dj";
+    if (details.type === 'business') keywords = "office,corporate,building,minimal";
+    if (details.type === 'funeral') keywords = "red rose,candle,sunset,black background";
+
     const randomImg = `https://source.unsplash.com/random/800x1000/?${keywords}&t=${new Date().getTime()}`;
     setDetails({ ...details, image: randomImg });
   };
@@ -109,7 +114,6 @@ const CreatePoster = () => {
               Download
             </button>
 
-            {/* NEW SAVE BUTTON */}
             <button 
               onClick={handleSaveToCloud}
               disabled={isSaving}
@@ -122,7 +126,7 @@ const CreatePoster = () => {
         </div>
 
         {/* Right: Preview */}
-        <div className="md:col-span-7 flex items-start justify-center bg-gray-900/50 p-8 rounded-2xl border border-gray-800">
+        <div className="md:col-span-7 flex items-start justify-center bg-gray-900/50 p-8 rounded-2xl border border-gray-800 sticky top-24">
           <div className="w-full max-w-md shadow-2xl rotate-1 hover:rotate-0 transition duration-500">
             <PosterCanvas 
               ref={posterRef} 

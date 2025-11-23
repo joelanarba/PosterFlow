@@ -19,36 +19,63 @@ const ControlPanel = ({ details, setDetails, onGenerateAI }) => {
   };
 
   return (
-    <div className="space-y-6 bg-gray-800/50 p-6 rounded-xl border border-gray-700 backdrop-blur-sm">
-      <div>
-        <label className="block text-xs font-medium text-gray-400 uppercase mb-1">Event Type</label>
-        <select 
-          name="type" 
-          value={details.type} 
-          onChange={handleChange}
-          className="w-full bg-gray-900 text-white p-3 rounded-lg border border-gray-700 focus:ring-2 focus:ring-blue-500 outline-none"
-        >
-          <option value="church">Church / Ministry</option>
-          <option value="party">Party / Club</option>
-          <option value="business">Business / Seminar</option>
-        </select>
+    <div className="space-y-6 bg-gray-800/50 p-6 rounded-xl border border-gray-700 backdrop-blur-sm h-fit">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-xs font-medium text-gray-400 uppercase mb-1">Event Type</label>
+          <select 
+            name="type" 
+            value={details.type} 
+            onChange={handleChange}
+            className="w-full bg-gray-900 text-white p-3 rounded-lg border border-gray-700 focus:ring-2 focus:ring-blue-500 outline-none"
+          >
+            <option value="church">Church</option>
+            <option value="party">Party / Club</option>
+            <option value="business">Seminar</option>
+            <option value="funeral">Funeral</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-400 uppercase mb-1">Theme Color</label>
+          <select 
+            name="themeColor" 
+            value={details.themeColor} 
+            onChange={handleChange}
+            className="w-full bg-gray-900 text-white p-3 rounded-lg border border-gray-700 focus:ring-2 focus:ring-blue-500 outline-none"
+          >
+            <option value="default">Auto Match</option>
+            <option value="gold">Gold & White</option>
+            <option value="blue">Corporate Blue</option>
+            <option value="red">Red & Black</option>
+            <option value="neon">Neon Pink</option>
+          </select>
+        </div>
       </div>
 
       <div className="space-y-4">
         <input 
           name="title" 
-          placeholder="Event Name (e.g. Sunday Service)" 
+          placeholder="Event Title (e.g. Sunday Service)" 
           value={details.title}
           onChange={handleChange}
-          className="w-full bg-gray-900 text-white p-3 rounded-lg border border-gray-700 focus:border-blue-500 outline-none"
+          className="w-full bg-gray-900 text-white p-3 rounded-lg border border-gray-700 focus:border-blue-500 outline-none font-bold"
         />
-        <input 
-          name="date" 
-          placeholder="Date (e.g. Nov 25 @ 9AM)" 
-          value={details.date}
-          onChange={handleChange}
-          className="w-full bg-gray-900 text-white p-3 rounded-lg border border-gray-700 focus:border-blue-500 outline-none"
-        />
+        <div className="grid grid-cols-2 gap-4">
+            <input 
+            name="date" 
+            placeholder="Date (e.g. Nov 25)" 
+            value={details.date}
+            onChange={handleChange}
+            className="w-full bg-gray-900 text-white p-3 rounded-lg border border-gray-700 focus:border-blue-500 outline-none"
+            />
+            <input 
+            name="time" 
+            placeholder="Time (e.g. 10:00 AM)" 
+            value={details.time}
+            onChange={(e) => setDetails({...details, time: e.target.value})}
+            className="w-full bg-gray-900 text-white p-3 rounded-lg border border-gray-700 focus:border-blue-500 outline-none"
+            />
+        </div>
         <input 
           name="venue" 
           placeholder="Venue (e.g. KNUST Great Hall)" 
@@ -56,14 +83,22 @@ const ControlPanel = ({ details, setDetails, onGenerateAI }) => {
           onChange={handleChange}
           className="w-full bg-gray-900 text-white p-3 rounded-lg border border-gray-700 focus:border-blue-500 outline-none"
         />
+        <textarea 
+          name="description" 
+          placeholder="Short Description (e.g. Come and experience the power of God. Dress Code: White)" 
+          value={details.description}
+          onChange={handleChange}
+          rows={3}
+          className="w-full bg-gray-900 text-white p-3 rounded-lg border border-gray-700 focus:border-blue-500 outline-none resize-none"
+        />
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-gray-400 uppercase mb-2">Background Image</label>
+        <label className="block text-xs font-medium text-gray-400 uppercase mb-2">Visuals</label>
         <div className="flex gap-2">
           <label className="flex-1 cursor-pointer bg-gray-700 hover:bg-gray-600 transition p-3 rounded-lg flex items-center justify-center gap-2 text-sm text-white">
             <Upload size={16} />
-            Upload Photo
+            Upload
             <input type="file" className="hidden" onChange={handleImageUpload} accept="image/*" />
           </label>
           
@@ -72,7 +107,7 @@ const ControlPanel = ({ details, setDetails, onGenerateAI }) => {
             className="flex-1 bg-gradient-to-r from-pink-600 to-purple-600 hover:opacity-90 transition p-3 rounded-lg flex items-center justify-center gap-2 text-sm text-white font-medium"
           >
             <Sparkles size={16} />
-            AI Generate
+            Auto BG
           </button>
         </div>
       </div>
