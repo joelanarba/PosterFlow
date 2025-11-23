@@ -1,52 +1,62 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { setGlobalOptions } = require("firebase-functions/v2");
 
-// Native 'fetch' is available in Node.js 18+ (which Firebase uses)
-
-// Set timeout to 60s because AI takes time
+// Allow up to 60 seconds for the AI to wake up
 setGlobalOptions({ maxInstances: 10, timeoutSeconds: 60 });
 
 exports.generateBackground = onCall(async (request) => {
-  // 1. Security Check
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "User must be logged in.");
   }
 
   const userPrompt = request.data.prompt || "abstract art";
-  console.log("Generating with Hugging Face:", userPrompt);
+  // Use SDXL - it is faster and more reliable on the free tier
+  const MODEL_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0";
+
+  console.log("Generating...", userPrompt);
 
   try {
-    // 2. Call Hugging Face API (Flux.1-schnell)
-    const response = await fetch(
-      "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell",
-      {
+    // Retry loop: Try up to 3 times if the model is loading
+    let response;
+    let attempts = 0;
+    
+    while (attempts < 3) {
+      response = await fetch(MODEL_URL, {
         headers: {
           Authorization: `Bearer ${process.env.HF_API_TOKEN}`,
           "Content-Type": "application/json",
         },
         method: "POST",
         body: JSON.stringify({ inputs: userPrompt }),
-      }
-    );
+      });
 
-    // 3. Handle Errors (e.g. Model Loading)
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("HF Error:", errorText);
-      throw new Error(`Hugging Face API Error: ${response.statusText}`);
+      if (response.ok) break; // Success! Exit loop.
+
+      // Check if error is "Model is loading"
+      const errorText = await response.clone().text();
+      if (errorText.includes("loading")) {
+        console.log("Model is sleeping... waiting 5s to retry.");
+        await new Promise(r => setTimeout(r, 5000)); // Wait 5s
+        attempts++;
+      } else {
+        // Real error (like Invalid Token)
+        console.error("HF Error:", errorText);
+        throw new Error(errorText);
+      }
     }
 
-    // 4. Convert Raw Image to Base64 Data URL
+    if (!response.ok) throw new Error("Model timed out.");
+
+    // Convert Image
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
     const base64Image = buffer.toString("base64");
     const dataUrl = `data:image/jpeg;base64,${base64Image}`;
 
-    // 5. Return to Frontend
     return { imageUrl: dataUrl };
 
   } catch (error) {
-    console.error("AI Generation Failed:", error);
-    throw new HttpsError("internal", "Failed to generate image. Model might be busy.");
+    console.error("Final Error:", error);
+    throw new HttpsError("internal", "AI Generation failed. Please try again in a moment.");
   }
 });
