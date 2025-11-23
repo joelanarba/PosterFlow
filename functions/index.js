@@ -1,44 +1,52 @@
-const functions = require("firebase-functions");
-const Replicate = require("replicate");
+const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { setGlobalOptions } = require("firebase-functions/v2");
 
-// SECURE: Uses the environment variable we just created
-const replicate = new Replicate({
-  auth: process.env.REPLICATE_API_TOKEN, 
-});
+// Native 'fetch' is available in Node.js 18+ (which Firebase uses)
 
+// Set timeout to 60s because AI takes time
+setGlobalOptions({ maxInstances: 10, timeoutSeconds: 60 });
 
-exports.generateBackground = functions.https.onCall(async (data, context) => {
-  // Security: Only allow logged-in users
-  if (!context.auth) {
-    throw new functions.https.HttpsError("unauthenticated", "User must be logged in.");
+exports.generateBackground = onCall(async (request) => {
+  // 1. Security Check
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "User must be logged in.");
   }
 
-  const userPrompt = data.prompt || "abstract art";
-  
-  console.log("Generating background for:", userPrompt);
+  const userPrompt = request.data.prompt || "abstract art";
+  console.log("Generating with Hugging Face:", userPrompt);
 
   try {
-    // 2. Call Flux-Schnell (The "Nano" Model)
-    const output = await replicate.run(
-      "black-forest-labs/flux-1-schnell", 
+    // 2. Call Hugging Face API (Flux.1-schnell)
+    const response = await fetch(
+      "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell",
       {
-        input: {
-          prompt: userPrompt,
-          num_outputs: 1,
-          aspect_ratio: "4:5",
-          output_format: "jpg",
-          output_quality: 80,
-          disable_safety_checker: true // Optional: speeds it up
-        }
+        headers: {
+          Authorization: `Bearer ${process.env.HF_API_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        method: "POST",
+        body: JSON.stringify({ inputs: userPrompt }),
       }
     );
 
-    // 3. Send the image URL back to the app
-    console.log("Success:", output);
-    return { imageUrl: output[0] };
+    // 3. Handle Errors (e.g. Model Loading)
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("HF Error:", errorText);
+      throw new Error(`Hugging Face API Error: ${response.statusText}`);
+    }
+
+    // 4. Convert Raw Image to Base64 Data URL
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const base64Image = buffer.toString("base64");
+    const dataUrl = `data:image/jpeg;base64,${base64Image}`;
+
+    // 5. Return to Frontend
+    return { imageUrl: dataUrl };
 
   } catch (error) {
     console.error("AI Generation Failed:", error);
-    throw new functions.https.HttpsError("internal", "Failed to generate image.");
+    throw new HttpsError("internal", "Failed to generate image. Model might be busy.");
   }
 });
