@@ -1,62 +1,65 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { setGlobalOptions } = require("firebase-functions/v2");
+const fetch = require("node-fetch");
 
-// Allow up to 60 seconds for the AI to wake up
 setGlobalOptions({ maxInstances: 10, timeoutSeconds: 60 });
+
+// Get HuggingFace API Key
+function getHFKey() {
+  return process.env.HUGGINGFACE_API_KEY || null;
+}
 
 exports.generateBackground = onCall(async (request) => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "User must be logged in.");
   }
 
-  const userPrompt = request.data.prompt || "abstract art";
-  // Use SDXL - it is faster and more reliable on the free tier
-  const MODEL_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0";
+  const userPrompt = request.data.prompt || "abstract colorful event background";
 
-  console.log("Generating...", userPrompt);
+  const apiKey = getHFKey();
+  if (!apiKey) {
+    throw new HttpsError(
+      "failed-precondition",
+      "HuggingFace API key not configured. Set HUGGINGFACE_API_KEY."
+    );
+  }
 
   try {
-    // Retry loop: Try up to 3 times if the model is loading
-    let response;
-    let attempts = 0;
-    
-    while (attempts < 3) {
-      response = await fetch(MODEL_URL, {
+    const HF_MODEL = "stabilityai/stable-diffusion-xl-base-1.0"; // FREE model
+
+    console.log("Calling HuggingFace:", HF_MODEL, userPrompt);
+
+    const response = await fetch(
+      `https://router.huggingface.co/hf-inference/models/${HF_MODEL}`,
+      {
+        method: "POST",
         headers: {
-          Authorization: `Bearer ${process.env.HF_API_TOKEN}`,
+          Authorization: `Bearer ${apiKey}`,
           "Content-Type": "application/json",
         },
-        method: "POST",
-        body: JSON.stringify({ inputs: userPrompt }),
-      });
-
-      if (response.ok) break; // Success! Exit loop.
-
-      // Check if error is "Model is loading"
-      const errorText = await response.clone().text();
-      if (errorText.includes("loading")) {
-        console.log("Model is sleeping... waiting 5s to retry.");
-        await new Promise(r => setTimeout(r, 5000)); // Wait 5s
-        attempts++;
-      } else {
-        // Real error (like Invalid Token)
-        console.error("HF Error:", errorText);
-        throw new Error(errorText);
+        body: JSON.stringify({
+          inputs: userPrompt,
+        }),
       }
+    );
+
+    if (!response.ok) {
+      const err = await response.text();
+      console.error("HF Error:", err);
+      throw new HttpsError("internal", `HuggingFace generation failed: ${err}`);
     }
 
-    if (!response.ok) throw new Error("Model timed out.");
-
-    // Convert Image
+    // Returns base64 image bytes
     const arrayBuffer = await response.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    const base64Image = buffer.toString("base64");
-    const dataUrl = `data:image/jpeg;base64,${base64Image}`;
+    const base64Image = Buffer.from(arrayBuffer).toString("base64");
 
-    return { imageUrl: dataUrl };
-
+    return {
+      imageUrl: `data:image/png;base64,${base64Image}`,
+    };
   } catch (error) {
-    console.error("Final Error:", error);
-    throw new HttpsError("internal", "AI Generation failed. Please try again in a moment.");
+    console.error("Generation Error:", error);
+    throw new HttpsError("internal", `AI generation failed: ${error.message}`);
   }
 });
+
+
