@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import html2canvas from 'html2canvas';
 import { Download, Save, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { getFunctions, httpsCallable } from "firebase/functions";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db, storage } from "../firebase";
@@ -77,17 +78,38 @@ const CreatePoster = () => {
     }
   };
 
-  const handleAIGenerate = () => {
-    // Enhanced AI Keywords based on new types
-    let keywords = "abstract,art";
-    if (details.type === 'church') keywords = "church,cross,holy,light";
-    if (details.type === 'party') keywords = "neon,party,nightclub,dj";
-    if (details.type === 'business') keywords = "office,corporate,building,minimal";
-    if (details.type === 'funeral') keywords = "red rose,candle,sunset,black background";
+  const handleAIGenerate = async () => {
+    if (!user) return alert("Please login to use Premium AI.");
 
-    const randomImg = `https://source.unsplash.com/random/800x1000/?${keywords}&t=${new Date().getTime()}`;
-    setDetails({ ...details, image: randomImg });
-  };
+    setIsSaving(true); // Show loading spinner while generating
+
+    try {
+        // 1. Smart Prompts
+        const prompts = {
+        church: "majestic church background, cross, holy light, golden rays, divine atmosphere, 8k, photorealistic, cinematic lighting --no text",
+        party: "cyberpunk nightlife background, neon lights, dj, club crowd, vibrant pink and purple, 8k, photorealistic --no text",
+        business: "modern corporate background, blue glass building, office seminar, sleek, minimal, professional, 8k --no text",
+        funeral: "dignified funeral background, red roses, black silk, candlelight, sunset, peaceful, respectful, 8k --no text"
+        };
+
+        const selectedPrompt = prompts[details.type] || "abstract modern art background, colorful, 8k";
+
+        // 2. Call Backend
+        const functions = getFunctions();
+        const generateBg = httpsCallable(functions, 'generateBackground');
+
+        const result = await generateBg({ prompt: selectedPrompt });
+
+        // 3. Update State
+        setDetails({ ...details, image: result.data.imageUrl });
+
+        } catch (error) {
+            console.error("AI Error:", error);
+            alert("AI Generation failed. Please try again.");
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100 font-sans selection:bg-pink-500 selection:text-white pb-20">
