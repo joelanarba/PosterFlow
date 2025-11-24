@@ -6,6 +6,7 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db, storage } from "../firebase";
 import { useAuth } from "../context/AuthContext";
+import toast from 'react-hot-toast';
 
 const useCreatePoster = () => {
   const posterRef = useRef(null);
@@ -29,6 +30,8 @@ const useCreatePoster = () => {
 
   const [errors, setErrors] = useState({});
 
+  const [isGenerating, setIsGenerating] = useState(false);
+
   const validate = () => {
     const newErrors = {};
     if (!details.title.trim()) newErrors.title = "Event title is required";
@@ -38,30 +41,75 @@ const useCreatePoster = () => {
     if (!details.venue.trim()) newErrors.venue = "Venue is required";
     
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    if (Object.keys(newErrors).length > 0) {
+      toast.error("Please fill in all required fields");
+      return false;
+    }
+    return true;
+  };
+
+  const generatePoster = async () => {
+    if (!posterRef.current) return null;
+    
+    setIsGenerating(true);
+    const loadingToast = toast.loading("Rendering poster...");
+
+    // Wrap in promise and setTimeout to unblock main thread and allow UI to update
+    return new Promise((resolve, reject) => {
+      setTimeout(async () => {
+        try {
+          const canvas = await html2canvas(posterRef.current, { 
+            scale: 2, 
+            useCORS: true,
+            logging: false, // Disable logging for performance
+          });
+          
+          toast.dismiss(loadingToast);
+          resolve(canvas);
+        } catch (error) {
+          console.error("Generation failed:", error);
+          toast.error("Failed to render poster", { id: loadingToast });
+          reject(error);
+        } finally {
+          setIsGenerating(false);
+        }
+      }, 100);
+    });
   };
 
   const handleDownload = async () => {
     if (!validate()) return;
     
-    if (posterRef.current) {
-      const canvas = await html2canvas(posterRef.current, { scale: 2, useCORS: true });
+    try {
+      const canvas = await generatePoster();
+      if (!canvas) return;
+
       const link = document.createElement('a');
       link.download = `${details.title || 'poster'}.png`;
       link.href = canvas.toDataURL('image/png');
       link.click();
+      
+      // Cleanup
+      canvas.remove();
+      toast.success("Downloaded successfully!");
+    } catch (error) {
+      // Error handled in generatePoster
     }
   };
 
   const handleSaveToCloud = async () => {
-    if (!user) return alert("Please login to save designs!");
+    if (!user) return toast.error("Please login to save designs!");
     if (!validate()) return;
-    if (!posterRef.current) return;
 
     try {
       setIsSaving(true);
-      const canvas = await html2canvas(posterRef.current, { scale: 2, useCORS: true });
+      const canvas = await generatePoster();
+      if (!canvas) return;
+
       const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+      
+      // Cleanup canvas immediately after blob creation
+      canvas.remove();
 
       const filename = `posters/${user.uid}/${Date.now()}.jpg`;
       const storageRef = ref(storage, filename);
@@ -77,21 +125,22 @@ const useCreatePoster = () => {
         themeColor: details.themeColor
       });
 
-      alert("Saved to Dashboard!");
+      toast.success("Saved to Dashboard!");
       navigate('/dashboard');
 
     } catch (error) {
       console.error("Error saving:", error);
-      alert("Failed to save poster. Check console.");
+      toast.error("Failed to save poster. Check console.");
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleAIGenerate = async () => {
-    if (!user) return alert("Please login to use Premium AI.");
+    if (!user) return toast.error("Please login to use Premium AI.");
 
     setIsSaving(true);
+    const loadingToast = toast.loading("Generating AI Background...");
 
     try {
         const prompts = {
@@ -109,10 +158,11 @@ const useCreatePoster = () => {
         const result = await generateBg({ prompt: selectedPrompt });
 
         setDetails({ ...details, image: result.data.imageUrl });
+        toast.success("Background generated!", { id: loadingToast });
 
         } catch (error) {
             console.error("AI Error:", error);
-            alert("AI Generation failed. Please try again.");
+            toast.error("AI Generation failed. Please try again.", { id: loadingToast });
         } finally {
             setIsSaving(false);
         }
@@ -127,6 +177,7 @@ const useCreatePoster = () => {
     showPayment,
     setShowPayment,
     isSaving,
+    isGenerating,
     errors,
     handleDownload,
     handleSaveToCloud,

@@ -3,6 +3,7 @@ import { PaystackButton } from 'react-paystack';
 import { X, CheckCircle, Loader2 } from 'lucide-react';
 import { functions } from '../firebase';
 import { httpsCallable } from 'firebase/functions';
+import toast from 'react-hot-toast';
 
 const PaymentModal = ({ isOpen, onClose, onSuccess }) => {
   const [email, setEmail] = useState("");
@@ -23,21 +24,23 @@ const PaymentModal = ({ isOpen, onClose, onSuccess }) => {
     text: "Pay GHS 10.00",
     onSuccess: async (reference) => {
       setIsVerifying(true);
+      const loadingToast = toast.loading("Verifying payment...");
       try {
         const verifyPayment = httpsCallable(functions, 'verifyPayment');
         const result = await verifyPayment({ reference: reference.reference });
         if (result.data.success) {
+          toast.success("Payment verified!", { id: loadingToast });
           onSuccess();
           onClose();
         }
       } catch (error) {
         console.error("Payment verification failed:", error);
-        alert("Payment verification failed. Please contact support.");
+        toast.error("Payment verification failed. Please contact support.", { id: loadingToast });
       } finally {
         setIsVerifying(false);
       }
     },
-    onClose: () => alert("Payment cancelled"),
+    onClose: () => toast("Payment cancelled", { icon: 'ℹ️' }),
   };
 
   return (
