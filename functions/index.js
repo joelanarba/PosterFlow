@@ -1,6 +1,11 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { setGlobalOptions } = require("firebase-functions/v2");
 const fetch = require("node-fetch");
+const { initializeApp } = require("firebase-admin/app");
+const { getFirestore, FieldValue } = require("firebase-admin/firestore");
+
+initializeApp();
+const db = getFirestore();
 
 setGlobalOptions({ maxInstances: 10, timeoutSeconds: 60 });
 
@@ -90,9 +95,52 @@ exports.verifyPayment = onCall(async (request) => {
       throw new HttpsError("aborted", "Payment verification failed.");
     }
 
+    // Handle Credit Top-up
+    if (request.data.type === 'credits' && request.data.credits) {
+      const userRef = db.collection('users').doc(request.auth.uid);
+      await userRef.set({
+        credits: FieldValue.increment(request.data.credits)
+      }, { merge: true });
+    }
+
     return { success: true, data: data.data };
   } catch (error) {
     console.error("Payment Verification Error:", error);
     throw new HttpsError("internal", "Unable to verify payment.");
+  }
+});
+
+exports.deductCredits = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "User must be logged in.");
+  }
+
+  const amount = request.data.amount || 1;
+  const userRef = db.collection('users').doc(request.auth.uid);
+
+  try {
+    await db.runTransaction(async (transaction) => {
+      const userDoc = await transaction.get(userRef);
+      if (!userDoc.exists) {
+        throw new HttpsError("not-found", "User does not exist.");
+      }
+
+      const currentCredits = userDoc.data().credits || 0;
+      if (currentCredits < amount) {
+        throw new HttpsError("failed-precondition", "Insufficient credits.");
+      }
+
+      transaction.update(userRef, {
+        credits: FieldValue.increment(-amount)
+      });
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error("Deduct Credits Error:", error);
+    if (error.code === 'failed-precondition') {
+      throw error;
+    }
+    throw new HttpsError("internal", "Unable to deduct credits.");
   }
 });

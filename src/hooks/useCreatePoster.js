@@ -1,5 +1,5 @@
-import { useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useRef, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import html2canvas from 'html2canvas';
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -11,18 +11,20 @@ import toast from 'react-hot-toast';
 import DOMPurify from 'dompurify';
 
 import useUndoRedo from './useUndoRedo';
-import { useEffect } from 'react';
+
 
 const useCreatePoster = () => {
   const posterRef = useRef(null);
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   
   const [isPremium, setIsPremium] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   
-  const [details, setDetailsRaw, { undo, redo, canUndo, canRedo }] = useUndoRedo({
+  // Check for template data
+  const initialDetails = location.state?.templateData || {
     type: 'church',
     title: '',
     date: '',
@@ -31,7 +33,9 @@ const useCreatePoster = () => {
     description: '',
     themeColor: 'default',
     image: null
-  });
+  };
+
+  const [details, setDetailsRaw, { undo, redo, canUndo, canRedo }] = useUndoRedo(initialDetails);
 
   const setDetails = (updates) => {
     if (typeof updates === 'function') {
@@ -201,36 +205,48 @@ const useCreatePoster = () => {
   };
 
   const handleAIGenerate = async () => {
-    if (!user) return toast.error("Please login to use Premium AI.");
+    if (!user) {
+      toast.error("Please login to use AI features");
+      return;
+    }
 
-    setIsSaving(true);
+    if ((user.credits || 0) < 1) {
+      toast.error("Insufficient credits. Please top up.");
+      return;
+    }
+
+    setIsGenerating(true);
     const loadingToast = toast.loading("Generating AI Background...");
 
     try {
-        const prompts = {
+      const prompts = {
         church: "majestic church background, cross, holy light, golden rays, divine atmosphere, 8k, photorealistic, cinematic lighting --no text",
         party: "cyberpunk nightlife background, neon lights, dj, club crowd, vibrant pink and purple, 8k, photorealistic --no text",
         business: "modern corporate background, blue glass building, office seminar, sleek, minimal, professional, 8k --no text",
         funeral: "dignified funeral background, red roses, black silk, candlelight, sunset, peaceful, respectful, 8k --no text"
-        };
+      };
 
-        const selectedPrompt = prompts[details.type] || "abstract modern art background, colorful, 8k";
+      const selectedPrompt = prompts[details.type] || "abstract modern art background, colorful, 8k";
 
-        const functions = getFunctions();
-        const generateBg = httpsCallable(functions, 'generateBackground');
+      const generateBg = httpsCallable(getFunctions(), 'generateBackground');
+      const result = await generateBg({ prompt: selectedPrompt });
 
-        const result = await generateBg({ prompt: selectedPrompt });
-
-        setDetails({ ...details, image: result.data.imageUrl });
-        toast.success("Background generated!", { id: loadingToast });
-
-        } catch (error) {
-            console.error("AI Error:", error);
-            toast.error("AI Generation failed. Please try again.", { id: loadingToast });
-        } finally {
-            setIsSaving(false);
-        }
-    };
+      if (result.data.imageUrl) {
+        setDetails(prev => ({ ...prev, image: result.data.imageUrl }));
+        
+        // Deduct Credit
+        const deductCredits = httpsCallable(getFunctions(), 'deductCredits');
+        await deductCredits({ amount: 1 });
+        
+        toast.success("Background generated! (1 Credit used)", { id: loadingToast });
+      }
+    } catch (error) {
+      console.error("AI Generation Error:", error);
+      toast.error(`Generation failed: ${error.message}`, { id: loadingToast });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   return {
     posterRef,
