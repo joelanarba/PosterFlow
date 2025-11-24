@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://posterflow.web.app/sitemap.xml

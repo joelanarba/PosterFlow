@@ -4,6 +4,10 @@ import './index.css'
 import App from './App.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import { Toaster } from 'react-hot-toast'
+import { initSentry } from './utils/sentry'
+
+// Initialize Sentry before app renders
+initSentry();
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

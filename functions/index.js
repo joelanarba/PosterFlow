@@ -3,11 +3,83 @@ const { setGlobalOptions } = require("firebase-functions/v2");
 const fetch = require("node-fetch");
 const { initializeApp } = require("firebase-admin/app");
 const { getFirestore, FieldValue } = require("firebase-admin/firestore");
+const Sentry = require("@sentry/node");
+
+// Initialize Sentry
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.FUNCTIONS_EMULATOR === "true" ? "development" : "production",
+    tracesSampleRate: 0.1,
+  });
+}
 
 initializeApp();
 const db = getFirestore();
 
 setGlobalOptions({ maxInstances: 10, timeoutSeconds: 60 });
+
+// Rate limiting configuration
+const RATE_LIMIT = {
+  AI_GENERATION: {
+    MAX_REQUESTS: 10,
+    WINDOW_MS: 60 * 60 * 1000, // 1 hour
+  },
+};
+
+/**
+ * Check if user has exceeded rate limit
+ * @param {string} userId - User ID
+ * @param {string} action - Action type (e.g., 'ai_generation')
+ * @param {object} limits - Rate limit config
+ * @returns {Promise<boolean>} - True if rate limit exceeded
+ */
+async function checkRateLimit(userId, action, limits) {
+  const now = Date.now();
+  const rateLimitRef = db.collection('rateLimits').doc(`${userId}_${action}`);
+  
+  try {
+    const result = await db.runTransaction(async (transaction) => {
+      const doc = await transaction.get(rateLimitRef);
+      
+      if (!doc.exists) {
+        // First request, create document
+        transaction.set(rateLimitRef, {
+          requests: [now],
+          lastReset: now,
+        });
+        return false;
+      }
+      
+      const data = doc.data();
+      const windowStart = now - limits.WINDOW_MS;
+      
+      // Filter out requests outside the window
+      const recentRequests = (data.requests || []).filter(time => time > windowStart);
+      
+      if (recentRequests.length >= limits.MAX_REQUESTS) {
+        // Rate limit exceeded
+        return true;
+      }
+      
+      // Add current request
+      recentRequests.push(now);
+      transaction.update(rateLimitRef, {
+        requests: recentRequests,
+        lastReset: now,
+      });
+      
+      return false;
+    });
+    
+    return result;
+  } catch (error) {
+    console.error('Rate limit check error:', error);
+    Sentry.captureException(error);
+    // On error, allow the request (fail open)
+    return false;
+  }
+}
 
 // Get HuggingFace API Key
 function getHFKey() {
@@ -19,20 +91,46 @@ exports.generateBackground = onCall(async (request) => {
     throw new HttpsError("unauthenticated", "User must be logged in.");
   }
 
+  const userId = request.auth.uid;
   const userPrompt = request.data.prompt || "abstract colorful event background";
 
-  const apiKey = getHFKey();
-  if (!apiKey) {
-    throw new HttpsError(
-      "failed-precondition",
-      "HuggingFace API key not configured. Set HUGGINGFACE_API_KEY."
-    );
-  }
-
   try {
+    // Check rate limit
+    const isRateLimited = await checkRateLimit(
+      userId,
+      'ai_generation',
+      RATE_LIMIT.AI_GENERATION
+    );
+    
+    if (isRateLimited) {
+      Sentry.addBreadcrumb({
+        category: 'rate-limit',
+        message: `User ${userId} exceeded AI generation rate limit`,
+        level: 'warning',
+      });
+      
+      throw new HttpsError(
+        "resource-exhausted",
+        `Rate limit exceeded. Maximum ${RATE_LIMIT.AI_GENERATION.MAX_REQUESTS} requests per hour. Please try again later.`
+      );
+    }
+
+    const apiKey = getHFKey();
+    if (!apiKey) {
+      throw new HttpsError(
+        "failed-precondition",
+        "HuggingFace API key not configured. Set HUGGINGFACE_API_KEY."
+      );
+    }
+
     const HF_MODEL = "stabilityai/stable-diffusion-xl-base-1.0"; // FREE model
 
     console.log("Calling HuggingFace:", HF_MODEL, userPrompt);
+    Sentry.addBreadcrumb({
+      category: 'ai',
+      message: `AI generation requested: ${userPrompt.substring(0, 50)}...`,
+      level: 'info',
+    });
 
     const response = await fetch(
       `https://router.huggingface.co/hf-inference/models/${HF_MODEL}`,
@@ -51,6 +149,7 @@ exports.generateBackground = onCall(async (request) => {
     if (!response.ok) {
       const err = await response.text();
       console.error("HF Error:", err);
+      Sentry.captureException(new Error(`HuggingFace API error: ${err}`));
       throw new HttpsError("internal", `HuggingFace generation failed: ${err}`);
     }
 
@@ -63,6 +162,21 @@ exports.generateBackground = onCall(async (request) => {
     };
   } catch (error) {
     console.error("Generation Error:", error);
+    
+    // Don't re-capture HttpsErrors in Sentry (they're expected errors)
+    if (!(error instanceof HttpsError)) {
+      Sentry.captureException(error, {
+        extra: {
+          userId,
+          promptLength: userPrompt?.length,
+        },
+      });
+    }
+    
+    // Re-throw HttpsErrors as-is, wrap others
+    if (error instanceof HttpsError) {
+      throw error;
+    }
     throw new HttpsError("internal", `AI generation failed: ${error.message}`);
   }
 });
