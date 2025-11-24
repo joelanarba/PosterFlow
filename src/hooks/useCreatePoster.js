@@ -8,6 +8,8 @@ import { db, storage } from "../firebase";
 import { useAuth } from "../context/AuthContext";
 import toast from 'react-hot-toast';
 
+import DOMPurify from 'dompurify';
+
 const useCreatePoster = () => {
   const posterRef = useRef(null);
   const { user } = useAuth();
@@ -17,7 +19,7 @@ const useCreatePoster = () => {
   const [showPayment, setShowPayment] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   
-  const [details, setDetails] = useState({
+  const [details, setDetailsRaw] = useState({
     type: 'church',
     title: '',
     date: '',
@@ -27,6 +29,27 @@ const useCreatePoster = () => {
     themeColor: 'default',
     image: null
   });
+
+  const setDetails = (updates) => {
+    if (typeof updates === 'function') {
+      setDetailsRaw((prev) => {
+        const newDetails = updates(prev);
+        return sanitizeDetails(newDetails);
+      });
+    } else {
+      setDetailsRaw(sanitizeDetails(updates));
+    }
+  };
+
+  const sanitizeDetails = (data) => {
+    const sanitized = { ...data };
+    Object.keys(sanitized).forEach(key => {
+      if (typeof sanitized[key] === 'string' && key !== 'image') {
+        sanitized[key] = DOMPurify.sanitize(sanitized[key]);
+      }
+    });
+    return sanitized;
+  };
 
   const [errors, setErrors] = useState({});
 
