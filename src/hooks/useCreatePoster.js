@@ -23,6 +23,10 @@ const useCreatePoster = () => {
   const [showPayment, setShowPayment] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   
+  // Check for shared poster ID from URL
+  const searchParams = new URLSearchParams(location.search);
+  const sharedPosterId = searchParams.get('shared');
+  
   // Check for template data
   const initialDetails = location.state?.templateData || {
     type: 'church',
@@ -145,21 +149,30 @@ const useCreatePoster = () => {
     });
   };
 
-  const handleDownload = async () => {
+
+  const handleDownload = async ({ format = 'png', quality = 1.0 } = {}) => {
     if (!validate()) return;
     
     try {
       const canvas = await generatePoster();
       if (!canvas) return;
 
+      const filename = details.title || 'poster';
       const link = document.createElement('a');
-      link.download = `${details.title || 'poster'}.png`;
-      link.href = canvas.toDataURL('image/png');
+      
+      if (format === 'jpeg') {
+        link.download = `${filename}.jpg`;
+        link.href = canvas.toDataURL('image/jpeg', quality);
+      } else {
+        link.download = `${filename}.png`;
+        link.href = canvas.toDataURL('image/png');
+      }
+      
       link.click();
       
       // Cleanup
       canvas.remove();
-      toast.success("Downloaded successfully!");
+      toast.success(`Downloaded as ${format.toUpperCase()}!`);
     } catch (error) {
       // Error handled in generatePoster
     }
@@ -265,7 +278,8 @@ const useCreatePoster = () => {
     undo,
     redo,
     canUndo,
-    canRedo
+    canRedo,
+    sharedPosterId,
   };
 };
 
