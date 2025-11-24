@@ -1,12 +1,6 @@
-import React, { useState, useRef } from 'react';
-import html2canvas from 'html2canvas';
+import React from 'react';
 import { Download, Save, Loader2 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { getFunctions, httpsCallable } from "firebase/functions";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
-import { db, storage } from "../firebase";
-import { useAuth } from "../context/AuthContext";
+import useCreatePoster from '../hooks/useCreatePoster';
 
 import PosterCanvas from '../components/PosterCanvas';
 import ControlPanel from '../components/ControlPanel';
@@ -14,102 +8,19 @@ import PaymentModal from '../components/PaymentModal';
 import Footer from '../components/Footer';
 
 const CreatePoster = () => {
-  const posterRef = useRef(null);
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  
-  const [isPremium, setIsPremium] = useState(false);
-  const [showPayment, setShowPayment] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  
-  // UPDATED STATE with new fields
-  const [details, setDetails] = useState({
-    type: 'church',
-    title: '',
-    date: '',
-    time: '',
-    venue: '',
-    description: '',
-    themeColor: 'default',
-    image: null
-  });
-
-  const handleDownload = async () => {
-    if (posterRef.current) {
-      const canvas = await html2canvas(posterRef.current, { scale: 2, useCORS: true });
-      const link = document.createElement('a');
-      link.download = `${details.title || 'poster'}.png`;
-      link.href = canvas.toDataURL('image/png');
-      link.click();
-    }
-  };
-
-  const handleSaveToCloud = async () => {
-    if (!user) return alert("Please login to save designs!");
-    if (!posterRef.current) return;
-
-    try {
-      setIsSaving(true);
-      const canvas = await html2canvas(posterRef.current, { scale: 2, useCORS: true });
-      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
-
-      const filename = `posters/${user.uid}/${Date.now()}.jpg`;
-      const storageRef = ref(storage, filename);
-      await uploadBytes(storageRef, blob);
-      const downloadURL = await getDownloadURL(storageRef);
-
-      await addDoc(collection(db, "users", user.uid, "designs"), {
-        title: details.title || "Untitled Poster",
-        imageUrl: downloadURL,
-        createdAt: serverTimestamp(),
-        type: details.type,
-        venue: details.venue,
-        themeColor: details.themeColor // Save theme too
-      });
-
-      alert("Saved to Dashboard!");
-      navigate('/dashboard');
-
-    } catch (error) {
-      console.error("Error saving:", error);
-      alert("Failed to save poster. Check console.");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleAIGenerate = async () => {
-    if (!user) return alert("Please login to use Premium AI.");
-
-    setIsSaving(true); // Show loading spinner while generating
-
-    try {
-        // 1. Smart Prompts
-        const prompts = {
-        church: "majestic church background, cross, holy light, golden rays, divine atmosphere, 8k, photorealistic, cinematic lighting --no text",
-        party: "cyberpunk nightlife background, neon lights, dj, club crowd, vibrant pink and purple, 8k, photorealistic --no text",
-        business: "modern corporate background, blue glass building, office seminar, sleek, minimal, professional, 8k --no text",
-        funeral: "dignified funeral background, red roses, black silk, candlelight, sunset, peaceful, respectful, 8k --no text"
-        };
-
-        const selectedPrompt = prompts[details.type] || "abstract modern art background, colorful, 8k";
-
-        // 2. Call Backend
-        const functions = getFunctions();
-        const generateBg = httpsCallable(functions, 'generateBackground');
-
-        const result = await generateBg({ prompt: selectedPrompt });
-
-        // 3. Update State
-        setDetails({ ...details, image: result.data.imageUrl });
-
-        } catch (error) {
-            console.error("AI Error:", error);
-            alert("AI Generation failed. Please try again.");
-        } finally {
-            setIsSaving(false);
-        }
-    };
+  const {
+    posterRef,
+    details,
+    setDetails,
+    isPremium,
+    setIsPremium,
+    showPayment,
+    setShowPayment,
+    isSaving,
+    handleDownload,
+    handleSaveToCloud,
+    handleAIGenerate
+  } = useCreatePoster();
 
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100 font-sans selection:bg-pink-500 selection:text-white pb-20">
