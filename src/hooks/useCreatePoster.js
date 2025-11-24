@@ -10,6 +10,9 @@ import toast from 'react-hot-toast';
 
 import DOMPurify from 'dompurify';
 
+import useUndoRedo from './useUndoRedo';
+import { useEffect } from 'react';
+
 const useCreatePoster = () => {
   const posterRef = useRef(null);
   const { user } = useAuth();
@@ -19,7 +22,7 @@ const useCreatePoster = () => {
   const [showPayment, setShowPayment] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   
-  const [details, setDetailsRaw] = useState({
+  const [details, setDetailsRaw, { undo, redo, canUndo, canRedo }] = useUndoRedo({
     type: 'church',
     title: '',
     date: '',
@@ -50,6 +53,44 @@ const useCreatePoster = () => {
     });
     return sanitized;
   };
+
+  // Keyboard Shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Check if user is typing in an input field
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
+
+      if (e.ctrlKey || e.metaKey) {
+        switch (e.key.toLowerCase()) {
+          case 'z':
+            e.preventDefault();
+            if (e.shiftKey) {
+              if (canRedo) redo();
+            } else {
+              if (canUndo) undo();
+            }
+            break;
+          case 'y':
+            e.preventDefault();
+            if (canRedo) redo();
+            break;
+          case 's':
+            e.preventDefault();
+            handleSaveToCloud();
+            break;
+          case 'd':
+            e.preventDefault();
+            handleDownload();
+            break;
+          default:
+            break;
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [canUndo, canRedo, details]); // Dependencies for shortcuts
 
   const [errors, setErrors] = useState({});
 
@@ -204,7 +245,11 @@ const useCreatePoster = () => {
     errors,
     handleDownload,
     handleSaveToCloud,
-    handleAIGenerate
+    handleAIGenerate,
+    undo,
+    redo,
+    canUndo,
+    canRedo
   };
 };
 

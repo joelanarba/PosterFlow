@@ -1,7 +1,8 @@
-import React from 'react';
-import { Upload, Sparkles } from 'lucide-react';
 
-const ControlPanel = ({ details, setDetails, onGenerateAI, errors = {} }) => {
+import React from 'react';
+import { Upload, Sparkles, Undo, Redo } from 'lucide-react';
+
+const ControlPanel = ({ details, setDetails, onGenerateAI, errors = {}, isLoading = false, undo, redo, canUndo, canRedo }) => {
   
   const handleChange = (e) => {
     setDetails({ ...details, [e.target.name]: e.target.value });
@@ -19,7 +20,28 @@ const ControlPanel = ({ details, setDetails, onGenerateAI, errors = {} }) => {
   };
 
   return (
-    <div className="space-y-6 bg-gray-800/50 p-6 rounded-xl border border-gray-700 backdrop-blur-sm h-fit">
+    <div className={`space-y-6 bg-gray-800/50 p-6 rounded-xl border border-gray-700 backdrop-blur-sm h-fit ${isLoading ? 'opacity-50 pointer-events-none' : ''}`}>
+      
+      {/* Undo/Redo Controls */}
+      <div className="flex gap-2 mb-4">
+        <button 
+          onClick={undo} 
+          disabled={!canUndo}
+          className="p-2 bg-gray-700 rounded-lg hover:bg-gray-600 disabled:opacity-30 disabled:cursor-not-allowed transition"
+          title="Undo (Ctrl+Z)"
+        >
+          <Undo size={18} />
+        </button>
+        <button 
+          onClick={redo} 
+          disabled={!canRedo}
+          className="p-2 bg-gray-700 rounded-lg hover:bg-gray-600 disabled:opacity-30 disabled:cursor-not-allowed transition"
+          title="Redo (Ctrl+Y)"
+        >
+          <Redo size={18} />
+        </button>
+      </div>
+
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-xs font-medium text-gray-400 uppercase mb-1">Event Type</label>
@@ -27,7 +49,8 @@ const ControlPanel = ({ details, setDetails, onGenerateAI, errors = {} }) => {
             name="type" 
             value={details.type} 
             onChange={handleChange}
-            className="w-full bg-gray-900 text-white p-3 rounded-lg border border-gray-700 focus:ring-2 focus:ring-blue-500 outline-none"
+            disabled={isLoading}
+            className="w-full bg-gray-900 text-white p-3 rounded-lg border border-gray-700 focus:ring-2 focus:ring-blue-500 outline-none disabled:opacity-50"
           >
             <option value="church">Church</option>
             <option value="party">Party / Club</option>
@@ -41,7 +64,8 @@ const ControlPanel = ({ details, setDetails, onGenerateAI, errors = {} }) => {
             name="themeColor" 
             value={details.themeColor} 
             onChange={handleChange}
-            className="w-full bg-gray-900 text-white p-3 rounded-lg border border-gray-700 focus:ring-2 focus:ring-blue-500 outline-none"
+            disabled={isLoading}
+            className="w-full bg-gray-900 text-white p-3 rounded-lg border border-gray-700 focus:ring-2 focus:ring-blue-500 outline-none disabled:opacity-50"
           >
             <option value="default">Auto Match</option>
             <option value="gold">Gold & White</option>
@@ -59,7 +83,8 @@ const ControlPanel = ({ details, setDetails, onGenerateAI, errors = {} }) => {
             placeholder="Event Title (e.g. Sunday Service)" 
             value={details.title}
             onChange={handleChange}
-            className={`w-full bg-gray-900 text-white p-3 rounded-lg border ${errors.title ? 'border-red-500' : 'border-gray-700'} focus:border-blue-500 outline-none font-bold`}
+            disabled={isLoading}
+            className={`w-full bg-gray-900 text-white p-3 rounded-lg border ${errors.title ? 'border-red-500' : 'border-gray-700'} focus:border-blue-500 outline-none font-bold disabled:opacity-50`}
           />
           {errors.title && <p className="text-red-500 text-xs mt-1">{errors.title}</p>}
         </div>
@@ -71,7 +96,8 @@ const ControlPanel = ({ details, setDetails, onGenerateAI, errors = {} }) => {
               placeholder="Date (e.g. Nov 25)" 
               value={details.date}
               onChange={handleChange}
-              className={`w-full bg-gray-900 text-white p-3 rounded-lg border ${errors.date ? 'border-red-500' : 'border-gray-700'} focus:border-blue-500 outline-none`}
+              disabled={isLoading}
+              className={`w-full bg-gray-900 text-white p-3 rounded-lg border ${errors.date ? 'border-red-500' : 'border-gray-700'} focus:border-blue-500 outline-none disabled:opacity-50`}
             />
             {errors.date && <p className="text-red-500 text-xs mt-1">{errors.date}</p>}
           </div>
@@ -81,7 +107,8 @@ const ControlPanel = ({ details, setDetails, onGenerateAI, errors = {} }) => {
               placeholder="Time (e.g. 10:00 AM)" 
               value={details.time}
               onChange={(e) => setDetails({...details, time: e.target.value})}
-              className={`w-full bg-gray-900 text-white p-3 rounded-lg border ${errors.time ? 'border-red-500' : 'border-gray-700'} focus:border-blue-500 outline-none`}
+              disabled={isLoading}
+              className={`w-full bg-gray-900 text-white p-3 rounded-lg border ${errors.time ? 'border-red-500' : 'border-gray-700'} focus:border-blue-500 outline-none disabled:opacity-50`}
             />
             {errors.time && <p className="text-red-500 text-xs mt-1">{errors.time}</p>}
           </div>
@@ -93,7 +120,8 @@ const ControlPanel = ({ details, setDetails, onGenerateAI, errors = {} }) => {
             placeholder="Venue (e.g. KNUST Great Hall)" 
             value={details.venue}
             onChange={handleChange}
-            className={`w-full bg-gray-900 text-white p-3 rounded-lg border ${errors.venue ? 'border-red-500' : 'border-gray-700'} focus:border-blue-500 outline-none`}
+            disabled={isLoading}
+            className={`w-full bg-gray-900 text-white p-3 rounded-lg border ${errors.venue ? 'border-red-500' : 'border-gray-700'} focus:border-blue-500 outline-none disabled:opacity-50`}
           />
           {errors.venue && <p className="text-red-500 text-xs mt-1">{errors.venue}</p>}
         </div>
@@ -104,22 +132,24 @@ const ControlPanel = ({ details, setDetails, onGenerateAI, errors = {} }) => {
           value={details.description}
           onChange={handleChange}
           rows={3}
-          className="w-full bg-gray-900 text-white p-3 rounded-lg border border-gray-700 focus:border-blue-500 outline-none resize-none"
+          disabled={isLoading}
+          className="w-full bg-gray-900 text-white p-3 rounded-lg border border-gray-700 focus:border-blue-500 outline-none resize-none disabled:opacity-50"
         />
       </div>
 
       <div>
         <label className="block text-xs font-medium text-gray-400 uppercase mb-2">Visuals</label>
         <div className="flex gap-2">
-          <label className="flex-1 cursor-pointer bg-gray-700 hover:bg-gray-600 transition p-3 rounded-lg flex items-center justify-center gap-2 text-sm text-white">
+          <label className={`flex-1 cursor-pointer bg-gray-700 hover:bg-gray-600 transition p-3 rounded-lg flex items-center justify-center gap-2 text-sm text-white ${isLoading ? 'opacity-50 pointer-events-none' : ''}`}>
             <Upload size={16} />
             Upload
-            <input type="file" className="hidden" onChange={handleImageUpload} accept="image/*" />
+            <input type="file" className="hidden" onChange={handleImageUpload} accept="image/*" disabled={isLoading} />
           </label>
           
           <button 
             onClick={onGenerateAI}
-            className="flex-1 bg-gradient-to-r from-pink-600 to-purple-600 hover:opacity-90 transition p-3 rounded-lg flex items-center justify-center gap-2 text-sm text-white font-medium"
+            disabled={isLoading}
+            className="flex-1 bg-gradient-to-r from-pink-600 to-purple-600 hover:opacity-90 transition p-3 rounded-lg flex items-center justify-center gap-2 text-sm text-white font-medium disabled:opacity-50"
           >
             <Sparkles size={16} />
             Auto BG

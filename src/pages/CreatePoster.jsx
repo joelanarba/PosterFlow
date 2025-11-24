@@ -20,7 +20,12 @@ const CreatePoster = () => {
     errors,
     handleDownload,
     handleSaveToCloud,
-    handleAIGenerate
+    handleAIGenerate,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+    isGenerating
   } = useCreatePoster();
 
   return (
@@ -38,6 +43,11 @@ const CreatePoster = () => {
             setDetails={setDetails} 
             onGenerateAI={handleAIGenerate} 
             errors={errors}
+            isLoading={isSaving || isGenerating}
+            undo={undo}
+            redo={redo}
+            canUndo={canUndo}
+            canRedo={canRedo}
           />
           
           <div className="flex gap-3">
