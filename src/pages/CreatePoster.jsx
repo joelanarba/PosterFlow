@@ -30,6 +30,8 @@ const CreatePoster = () => {
     canRedo,
     isGenerating,
     sharedPosterId,
+    size,
+    setSize,
   } = useCreatePoster();
 
   // Collaboration
@@ -101,6 +103,8 @@ const CreatePoster = () => {
             redo={redo}
             canUndo={canUndo}
             canRedo={canRedo}
+            size={size}
+            setSize={setSize}
           />
           
           <div className="flex gap-3">
@@ -126,7 +130,8 @@ const CreatePoster = () => {
             <PosterCanvas 
               ref={posterRef} 
               details={details} 
-              isPremium={isPremium} 
+              isPremium={isPremium}
+              size={size}
             />
           </div>
         </div>

@@ -2,8 +2,9 @@ import React, { forwardRef, useState, useEffect, memo } from 'react';
 import { clsx } from 'clsx';
 import { Loader2, ImageOff } from 'lucide-react';
 
-const PosterCanvas = memo(forwardRef(({ details, isPremium }, ref) => {
+const PosterCanvas = memo(forwardRef(({ details, isPremium, size }, ref) => {
   const { title, date, time, venue, description, type, image, themeColor } = details;
+  const { width, height } = size || { width: 1080, height: 1080 };
   
   const [imageLoading, setImageLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
@@ -47,6 +48,7 @@ const PosterCanvas = memo(forwardRef(({ details, isPremium }, ref) => {
       ref={ref}
       className="relative w-full aspect-[4/5] bg-gray-900 overflow-hidden shadow-2xl text-white"
       id="poster-node"
+      style={{ width: `${width}px`, height: `${height}px` }}
     >
       {/* 1. Background Layer */}
       <div className="absolute inset-0 bg-gray-800">

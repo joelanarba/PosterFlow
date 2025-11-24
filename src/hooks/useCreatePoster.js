@@ -11,6 +11,7 @@ import toast from 'react-hot-toast';
 import DOMPurify from 'dompurify';
 
 import useUndoRedo from './useUndoRedo';
+import { DEFAULT_SIZE } from '../constants/socialSizes';
 
 
 const useCreatePoster = () => {
@@ -22,6 +23,8 @@ const useCreatePoster = () => {
   const [isPremium, setIsPremium] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [size, setSize] = useState(DEFAULT_SIZE);
   
   // Check for shared poster ID from URL
   const searchParams = new URLSearchParams(location.search);
@@ -101,8 +104,6 @@ const useCreatePoster = () => {
   }, [canUndo, canRedo, details]); // Dependencies for shortcuts
 
   const [errors, setErrors] = useState({});
-
-  const [isGenerating, setIsGenerating] = useState(false);
 
   const validate = () => {
     const newErrors = {};
@@ -280,6 +281,8 @@ const useCreatePoster = () => {
     canUndo,
     canRedo,
     sharedPosterId,
+    size,
+    setSize,
   };
 };
 

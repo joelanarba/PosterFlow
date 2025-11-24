@@ -1,9 +1,11 @@
 
 import React from 'react';
-import { Upload, Sparkles, Undo, Redo } from 'lucide-react';
+import { Upload, Sparkles, Undo, Redo, Maximize2 } from 'lucide-react';
+import { getAllSizes } from '../constants/socialSizes';
 
-const ControlPanel = ({ details, setDetails, onGenerateAI, errors = {}, isLoading = false, undo, redo, canUndo, canRedo }) => {
+const ControlPanel = ({ details, setDetails, onGenerateAI, errors = {}, isLoading = false, undo, redo, canUndo, canRedo, size, setSize }) => {
   
+  const allSizes = getAllSizes();
   const handleChange = (e) => {
     setDetails({ ...details, [e.target.name]: e.target.value });
   };
@@ -40,6 +42,29 @@ const ControlPanel = ({ details, setDetails, onGenerateAI, errors = {}, isLoadin
         >
           <Redo size={18} />
         </button>
+      </div>
+
+      {/* Size Selector */}
+      <div>
+        <label className="block text-sm font-medium mb-2 flex items-center gap-2">
+          <Maximize2 size={16} />
+          Platform Size
+        </label>
+        <select 
+          value={size.id} 
+          onChange={(e) => {
+            const selectedSize = allSizes.find(s => s.id === e.target.value);
+            if (selectedSize) setSize(selectedSize);
+          }}
+          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-pink-500 focus:outline-none"
+        >
+          {allSizes.map((sizeOption) => (
+            <option key={sizeOption.id} value={sizeOption.id}>
+              {sizeOption.platformIcon} {sizeOption.platformLabel} - {sizeOption.label} ({sizeOption.width}×{sizeOption.height})
+            </option>
+          ))}
+        </select>
+        <p className="text-xs text-gray-500 mt-1">Aspect Ratio: {size.ratio}</p>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
