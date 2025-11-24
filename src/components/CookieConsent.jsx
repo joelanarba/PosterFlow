@@ -10,6 +10,19 @@ const CookieConsent = () => {
     marketing: false,
   });
 
+  const applyConsent = (prefs) => {
+    // Update Google Analytics consent mode
+    if (window.gtag) {
+      window.gtag('consent', 'update', {
+        analytics_storage: prefs.analytics ? 'granted' : 'denied',
+        ad_storage: prefs.marketing ? 'granted' : 'denied',
+      });
+    }
+
+    // Store consent for other services
+    window.cookieConsent = prefs;
+  };
+
   useEffect(() => {
     // Check if user has already made a choice
     const consent = localStorage.getItem('cookieConsent');
@@ -28,19 +41,6 @@ const CookieConsent = () => {
       }
     }
   }, []);
-
-  const applyConsent = (prefs) => {
-    // Update Google Analytics consent mode
-    if (window.gtag) {
-      window.gtag('consent', 'update', {
-        analytics_storage: prefs.analytics ? 'granted' : 'denied',
-        ad_storage: prefs.marketing ? 'granted' : 'denied',
-      });
-    }
-
-    // Store consent for other services
-    window.cookieConsent = prefs;
-  };
 
   const handleAcceptAll = () => {
     const allAccepted = {
