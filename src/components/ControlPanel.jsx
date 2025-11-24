@@ -1,7 +1,7 @@
 import React from 'react';
 import { Upload, Sparkles } from 'lucide-react';
 
-const ControlPanel = ({ details, setDetails, onGenerateAI }) => {
+const ControlPanel = ({ details, setDetails, onGenerateAI, errors = {} }) => {
   
   const handleChange = (e) => {
     setDetails({ ...details, [e.target.name]: e.target.value });
@@ -53,36 +53,51 @@ const ControlPanel = ({ details, setDetails, onGenerateAI }) => {
       </div>
 
       <div className="space-y-4">
-        <input 
-          name="title" 
-          placeholder="Event Title (e.g. Sunday Service)" 
-          value={details.title}
-          onChange={handleChange}
-          className="w-full bg-gray-900 text-white p-3 rounded-lg border border-gray-700 focus:border-blue-500 outline-none font-bold"
-        />
-        <div className="grid grid-cols-2 gap-4">
-            <input 
-            name="date" 
-            placeholder="Date (e.g. Nov 25)" 
-            value={details.date}
+        <div>
+          <input 
+            name="title" 
+            placeholder="Event Title (e.g. Sunday Service)" 
+            value={details.title}
             onChange={handleChange}
-            className="w-full bg-gray-900 text-white p-3 rounded-lg border border-gray-700 focus:border-blue-500 outline-none"
-            />
-            <input 
-            name="time" 
-            placeholder="Time (e.g. 10:00 AM)" 
-            value={details.time}
-            onChange={(e) => setDetails({...details, time: e.target.value})}
-            className="w-full bg-gray-900 text-white p-3 rounded-lg border border-gray-700 focus:border-blue-500 outline-none"
-            />
+            className={`w-full bg-gray-900 text-white p-3 rounded-lg border ${errors.title ? 'border-red-500' : 'border-gray-700'} focus:border-blue-500 outline-none font-bold`}
+          />
+          {errors.title && <p className="text-red-500 text-xs mt-1">{errors.title}</p>}
         </div>
-        <input 
-          name="venue" 
-          placeholder="Venue (e.g. KNUST Great Hall)" 
-          value={details.venue}
-          onChange={handleChange}
-          className="w-full bg-gray-900 text-white p-3 rounded-lg border border-gray-700 focus:border-blue-500 outline-none"
-        />
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <input 
+              name="date" 
+              placeholder="Date (e.g. Nov 25)" 
+              value={details.date}
+              onChange={handleChange}
+              className={`w-full bg-gray-900 text-white p-3 rounded-lg border ${errors.date ? 'border-red-500' : 'border-gray-700'} focus:border-blue-500 outline-none`}
+            />
+            {errors.date && <p className="text-red-500 text-xs mt-1">{errors.date}</p>}
+          </div>
+          <div>
+            <input 
+              name="time" 
+              placeholder="Time (e.g. 10:00 AM)" 
+              value={details.time}
+              onChange={(e) => setDetails({...details, time: e.target.value})}
+              className={`w-full bg-gray-900 text-white p-3 rounded-lg border ${errors.time ? 'border-red-500' : 'border-gray-700'} focus:border-blue-500 outline-none`}
+            />
+            {errors.time && <p className="text-red-500 text-xs mt-1">{errors.time}</p>}
+          </div>
+        </div>
+
+        <div>
+          <input 
+            name="venue" 
+            placeholder="Venue (e.g. KNUST Great Hall)" 
+            value={details.venue}
+            onChange={handleChange}
+            className={`w-full bg-gray-900 text-white p-3 rounded-lg border ${errors.venue ? 'border-red-500' : 'border-gray-700'} focus:border-blue-500 outline-none`}
+          />
+          {errors.venue && <p className="text-red-500 text-xs mt-1">{errors.venue}</p>}
+        </div>
+
         <textarea 
           name="description" 
           placeholder="Short Description (e.g. Come and experience the power of God. Dress Code: White)" 

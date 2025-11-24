@@ -27,7 +27,23 @@ const useCreatePoster = () => {
     image: null
   });
 
+  const [errors, setErrors] = useState({});
+
+  const validate = () => {
+    const newErrors = {};
+    if (!details.title.trim()) newErrors.title = "Event title is required";
+    if (details.title.length > 50) newErrors.title = "Title must be under 50 characters";
+    if (!details.date.trim()) newErrors.date = "Date is required";
+    if (!details.time.trim()) newErrors.time = "Time is required";
+    if (!details.venue.trim()) newErrors.venue = "Venue is required";
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleDownload = async () => {
+    if (!validate()) return;
+    
     if (posterRef.current) {
       const canvas = await html2canvas(posterRef.current, { scale: 2, useCORS: true });
       const link = document.createElement('a');
@@ -39,6 +55,7 @@ const useCreatePoster = () => {
 
   const handleSaveToCloud = async () => {
     if (!user) return alert("Please login to save designs!");
+    if (!validate()) return;
     if (!posterRef.current) return;
 
     try {
@@ -110,6 +127,7 @@ const useCreatePoster = () => {
     showPayment,
     setShowPayment,
     isSaving,
+    errors,
     handleDownload,
     handleSaveToCloud,
     handleAIGenerate

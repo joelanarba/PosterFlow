@@ -17,6 +17,7 @@ const CreatePoster = () => {
     showPayment,
     setShowPayment,
     isSaving,
+    errors,
     handleDownload,
     handleSaveToCloud,
     handleAIGenerate
@@ -36,6 +37,7 @@ const CreatePoster = () => {
             details={details} 
             setDetails={setDetails} 
             onGenerateAI={handleAIGenerate} 
+            errors={errors}
           />
           
           <div className="flex gap-3">
