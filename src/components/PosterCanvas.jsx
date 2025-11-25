@@ -48,7 +48,9 @@ const PosterCanvas = memo(forwardRef(({ details, isPremium, size }, ref) => {
       ref={ref}
       className="relative w-full aspect-[4/5] bg-gray-900 overflow-hidden shadow-2xl text-white"
       id="poster-node"
-      style={{ width: `${width}px`, height: `${height}px` }}
+      style={{}}
+      data-width={width}
+      data-height={height}
     >
       {/* 1. Background Layer */}
       <div className="absolute inset-0 bg-gray-800">
